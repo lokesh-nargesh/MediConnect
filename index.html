@@ -2,64 +2,231 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>MediConnect</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f0f2f5; margin: 0; }
-    header { background: #1877f2; color: white; padding: 10px; text-align: center; }
-    .container { width: 600px; margin: 20px auto; }
-    .post-box { background: white; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
-    .post-box h3 { margin: 0; }
-    .like-btn { color: #1877f2; cursor: pointer; }
-    .chat-box { background: white; padding: 10px; border-radius: 8px; margin-top: 20px; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediConnect – Social Hospital Management System</title>
+  <meta name="description" content="A premium hospital management platform combining traditional operations with social networking profiles, feeds, groups, secure doctor-patient chats, and AI medical assistance.">
+  
+  <!-- CDNs for Boxicons & Chart.js -->
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Style Sheet -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>MediConnect</h1>
-  </header>
-  
-  <div class="container">
-    <!-- Profile Section -->
-    <div class="post-box">
-      <h3>User Profile</h3>
-      <p>Name: John Doe</p>
-      <p>Status: Feeling happy!</p>
-    </div>
 
-    <!-- Post Section -->
-    <div class="post-box">
-      <h3>Jane Smith</h3>
-      <p>Just finished my project 🎉</p>
-      <span class="like-btn" onclick="likePost(this)">👍 Like</span>
-      <span class="likes-count">0 Likes</span>
-    </div>
+  <!-- Login Landing Page Screen -->
+  <div id="loginPage" class="login-wrapper">
+    <div class="login-card glass-panel">
+      
+      <!-- Left Branding Panel -->
+      <div class="login-branding">
+        <div class="brand-logo" style="font-size: 32px; justify-content: center; margin-bottom: 16px;">
+          <i class='bx bx-pulse'></i> MediConnect
+        </div>
+        <p class="login-subtitle">Social Hospital Management System</p>
+        <p style="font-size: 13px; color: var(--text-secondary); max-width: 320px; margin: 16px auto 0 auto; line-height: 1.5;">
+          Connecting patients, doctors, and operational staff in a unified, transparent healthcare social network.
+        </p>
+      </div>
 
-    <!-- Messaging Section -->
-    <div class="chat-box">
-      <h3>Chat</h3>
-      <div id="messages"></div>
-      <input type="text" id="chatInput" placeholder="Type a message..." />
-      <button onclick="sendMessage()">Send</button>
+      <div class="login-divider"></div>
+
+      <!-- Right Action Panel -->
+      <div class="login-actions-container">
+        <!-- Account Quick Switcher (Facebook-style) -->
+        <div id="quickLoginSection">
+          <h3 style="font-size: 16px; margin-bottom: 16px; font-family: var(--font-heading); text-align: center;">Recent Logins</h3>
+          <div class="quick-login-grid" id="quickLoginCardsGrid">
+            <!-- Rendered dynamically by app.js to reflect new registrations -->
+          </div>
+          <p style="font-size: 12px; color: var(--text-secondary); margin-top: 20px; text-align: center; cursor: pointer; text-decoration: underline;" id="switchToManualBtn">
+            Or log in manually with credentials
+          </p>
+          <p style="font-size: 12px; color: var(--color-primary); margin-top: 10px; text-align: center; cursor: pointer; font-weight: 600; text-decoration: underline;" id="doctorSelfRegisterBtn">
+            Are you a doctor? Onboard yourself here
+          </p>
+        </div>
+
+        <!-- Manual Credentials Form (Hidden by default) -->
+        <div id="manualLoginSection" style="display: none;">
+          <h3 style="font-size: 16px; margin-bottom: 16px; font-family: var(--font-heading); text-align: center;">Account Sign In</h3>
+          <div class="form-group">
+            <label for="loginUsername">Username / ID</label>
+            <input type="text" id="loginUsername" class="form-control" placeholder="e.g. patient_john, doctor_sarah">
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" class="form-control" placeholder="••••••••">
+          </div>
+          <div class="form-group">
+            <label for="loginRole">Select System Role</label>
+            <select id="loginRole" class="form-control">
+              <option value="patient">Patient</option>
+              <option value="doctor">Medical Doctor</option>
+              <option value="staff">Hospital Staff</option>
+            </select>
+          </div>
+          <button class="btn-primary" id="manualSignInBtn" style="width: 100%; margin-top: 8px;">Sign In</button>
+          
+          <p id="loginErrorMessage" style="color: var(--color-emergency); font-size: 11px; margin-top: 8px; font-weight: 600; text-align: center; display: none;">
+            Invalid credentials. Try: patient_john, doctor_sarah, or staff_james!
+          </p>
+          
+          <p style="font-size: 12px; color: var(--text-secondary); margin-top: 20px; text-align: center; cursor: pointer; text-decoration: underline;" id="switchToQuickBtn">
+            Back to Quick Account Switcher
+          </p>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <script>
-    function likePost(element) {
-      let countSpan = element.nextElementSibling;
-      let count = parseInt(countSpan.innerText);
-      countSpan.innerText = (count + 1) + " Likes";
-    }
+  <!-- Application Shell Layout Grid -->
+  <div class="app-container" id="appContainer" style="display: none;">
+    
+    <!-- Top Header Navigation Bar -->
+    <header class="topbar">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <i class='bx bx-pulse'></i> MediConnect
+        </div>
+        <div class="search-bar-container">
+          <i class='bx bx-search'></i>
+          <input type="text" id="topSearchInput" class="search-input" placeholder="Search news feed, tips, or departments...">
+        </div>
+      </div>
+      
+      <div class="topbar-actions">
+        <!-- Emergency alert button -->
+        <button class="emergency-alert-btn" id="topEmergencyBtn">
+          <i class='bx bxs-error-alt'></i> EMERGENCY
+        </button>
 
-    function sendMessage() {
-      let input = document.getElementById("chatInput");
-      let messages = document.getElementById("messages");
-      if (input.value.trim() !== "") {
-        let msg = document.createElement("p");
-        msg.innerText = "You: " + input.value;
-        messages.appendChild(msg);
-        input.value = "";
-      }
-    }
-  </script>
+        <!-- System Controls -->
+        <button class="icon-action-btn" id="themeToggleBtn" title="Toggle Light/Dark Theme">
+          <i class='bx bx-sun'></i>
+        </button>
+        <button class="icon-action-btn" id="notificationBtn" title="Notifications">
+          <i class='bx bx-bell'></i>
+          <span class="badge-count">2</span>
+        </button>
+
+        <!-- Log Out Action -->
+        <button class="icon-action-btn" id="logoutBtn" title="Log Out" style="background-color: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.2); color: var(--color-emergency);">
+          <i class='bx bx-log-out'></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Left Sidebar: User profile & Navigation Menu -->
+    <aside class="left-sidebar">
+      <div>
+        <div class="sidebar-user-card" id="sidebarUserCardBtn">
+          <div class="user-avatar-container">
+            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80" class="user-avatar" id="sidebarAvatar" alt="User Profile">
+            <span class="status-badge"></span>
+          </div>
+          <div class="user-info-text">
+            <h4 id="sidebarUserName">John Doe</h4>
+            <p id="sidebarUserRole">Patient</p>
+          </div>
+        </div>
+
+        <nav>
+          <ul class="sidebar-nav-list" id="sidebarNavContainer">
+            <!-- Navigation links rendered dynamically in app.js depending on active role -->
+          </ul>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <p>© 2026 MediConnect Inc.</p>
+        <p style="font-size:10px; margin-top:4px;">Secure Patient Care Network</p>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <main class="main-content" id="mainContentArea">
+      <!-- Dynamic panels rendered here by routing controller -->
+    </main>
+
+    <!-- Right Sidebar: Interactive Hospital Directory & Contacts -->
+    <aside class="right-sidebar">
+      <div class="right-sidebar-section">
+        <div class="right-sidebar-title">Hospital Directory</div>
+        <div class="directory-list" id="directoryListContainer">
+          <!-- Active users directory list filled by app.js -->
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Chat Dock for floating direct messaging chatboxes (Facebook-style) -->
+  <div class="chat-dock" id="chatDockContainer">
+    <!-- Active chats spawn here -->
+  </div>
+
+  <!-- Telemedicine Mock Call Modal Overlay -->
+  <div class="modal-overlay" id="telemedModalOverlay">
+    <div class="modal-content">
+      <button class="modal-close-btn" onclick="document.getElementById('telemedModalOverlay').style.display = 'none'">&times;</button>
+      <div id="telemedModalBody">
+        <!-- Content dynamically injected during telehealth flow -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Critical Emergency Alert Modal Overlay -->
+  <div class="modal-overlay" id="emergencyModalOverlay">
+    <div class="modal-content" style="border: 2px solid var(--color-emergency);">
+      <div id="emergencyModalBody">
+        <!-- Content injected during countdown -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Doctor Onboarding Self-Registration Modal Overlay -->
+  <div class="modal-overlay" id="doctorRegisterModalOverlay">
+    <div class="modal-content" style="max-width: 550px;">
+      <button class="modal-close-btn" onclick="document.getElementById('doctorRegisterModalOverlay').style.display = 'none'">&times;</button>
+      <h2 style="margin-bottom: 8px;"><i class='bx bx-plus-medical' style="color: var(--color-doctor);"></i> Doctor Onboarding</h2>
+      <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 20px;">Register your consultant profile into the MediConnect database.</p>
+      
+      <div style="text-align: left; display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div class="form-group">
+          <label for="regDocName">Full Name</label>
+          <input type="text" id="regDocName" class="form-control" placeholder="Dr. John Watson">
+        </div>
+        <div class="form-group">
+          <label for="regDocUsername">Choose Username / ID</label>
+          <input type="text" id="regDocUsername" class="form-control" placeholder="dr_watson">
+        </div>
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="regDocSpecialty">Specialization (Cardiology, Pediatrics, etc.)</label>
+          <input type="text" id="regDocSpecialty" class="form-control" placeholder="Endocrinology & Cardiology">
+        </div>
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="regDocCredentials">Medical Credentials & Degrees</label>
+          <input type="text" id="regDocCredentials" class="form-control" placeholder="MD, Ph.D, Johns Hopkins Medicine">
+        </div>
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="regDocBio">Short Profile Bio</label>
+          <input type="text" id="regDocBio" class="form-control" placeholder="Consultant Cardiologist specializing in heart rate rehab.">
+        </div>
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="regDocAvatar">Profile Picture URL (leave blank for default)</label>
+          <input type="text" id="regDocAvatar" class="form-control" placeholder="https://images.unsplash.com/... or blank">
+        </div>
+      </div>
+      
+      <button class="btn-primary" id="submitDoctorSelfRegBtn" style="width: 100%; margin-top: 24px; padding: 12px;">Complete Onboarding</button>
+    </div>
+  </div>
+
+  <!-- Load Database Seed & Main App Engine -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
