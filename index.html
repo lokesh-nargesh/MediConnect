@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MediConnect</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f0f2f5; margin: 0; }
+    header { background: #1877f2; color: white; padding: 10px; text-align: center; }
+    .container { width: 600px; margin: 20px auto; }
+    .post-box { background: white; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+    .post-box h3 { margin: 0; }
+    .like-btn { color: #1877f2; cursor: pointer; }
+    .chat-box { background: white; padding: 10px; border-radius: 8px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Mini Facebook Clone</h1>
+  </header>
+  
+  <div class="container">
+    <!-- Profile Section -->
+    <div class="post-box">
+      <h3>User Profile</h3>
+      <p>Name: John Doe</p>
+      <p>Status: Feeling happy!</p>
+    </div>
+
+    <!-- Post Section -->
+    <div class="post-box">
+      <h3>Jane Smith</h3>
+      <p>Just finished my project 🎉</p>
+      <span class="like-btn" onclick="likePost(this)">👍 Like</span>
+      <span class="likes-count">0 Likes</span>
+    </div>
+
+    <!-- Messaging Section -->
+    <div class="chat-box">
+      <h3>Chat</h3>
+      <div id="messages"></div>
+      <input type="text" id="chatInput" placeholder="Type a message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    function likePost(element) {
+      let countSpan = element.nextElementSibling;
+      let count = parseInt(countSpan.innerText);
+      countSpan.innerText = (count + 1) + " Likes";
+    }
+
+    function sendMessage() {
+      let input = document.getElementById("chatInput");
+      let messages = document.getElementById("messages");
+      if (input.value.trim() !== "") {
+        let msg = document.createElement("p");
+        msg.innerText = "You: " + input.value;
+        messages.appendChild(msg);
+        input.value = "";
+      }
+    }
+  </script>
+</body>
+</html>
