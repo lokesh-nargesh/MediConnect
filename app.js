@@ -16,7 +16,8 @@ document.addEventListener("DOMContentLoaded", () => {
     telemedSeconds: 0,
     activeGroupId: "grp_diabetes",
     hydrationCount: window.MediConnectDB.users.patient.healthStats.hydration,
-    stepsCount: window.MediConnectDB.users.patient.healthStats.steps
+    stepsCount: window.MediConnectDB.users.patient.healthStats.steps,
+    mobileCircleChatActive: false // tracks active chat pane view on mobile circle boards
   };
 
   // --- INITIALIZATION ---
@@ -70,12 +71,17 @@ document.addEventListener("DOMContentLoaded", () => {
   function checkLoginSession() {
     const loginPage = document.getElementById("loginPage");
     const appContainer = document.getElementById("appContainer");
+    const globalAiBtn = document.getElementById("globalAiToggleBtn");
+    const globalAiBox = document.getElementById("globalAiChatBox");
 
     if (state.isLoggedIn && state.currentUser) {
       loginPage.style.display = "none";
       appContainer.style.display = "grid";
       document.body.setAttribute("data-active-role", state.currentRole);
       
+      // Show global AI floating toggle
+      if (globalAiBtn) globalAiBtn.style.display = "flex";
+
       updateSidebarUserCard();
       renderSidebarNav();
       renderRightSidebarDirectory();
@@ -85,6 +91,13 @@ document.addEventListener("DOMContentLoaded", () => {
       appContainer.style.display = "none";
       document.body.removeAttribute("data-active-role");
       
+      // Hide global AI chat components
+      if (globalAiBtn) globalAiBtn.style.display = "none";
+      if (globalAiBox) {
+        globalAiBox.style.display = "none";
+        globalAiBox.classList.add("collapsed");
+      }
+
       // Cleanup active processes
       if (state.emergencyTimer) clearInterval(state.emergencyTimer);
       if (state.telemedTimer) clearInterval(state.telemedTimer);
@@ -100,7 +113,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!grid) return;
     grid.innerHTML = "";
 
-    // Show first 6 members from the directory in the Account Switcher grid
     const usersToShow = window.MediConnectDB.directory.slice(0, 6);
 
     usersToShow.forEach(user => {
@@ -162,10 +174,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function registerNewUser(profile) {
-    // Save details to memory DB
     window.MediConnectDB.users[profile.id] = profile;
     
-    // Insert into directory
     window.MediConnectDB.directory.push({
       id: profile.id,
       name: profile.name,
@@ -254,7 +264,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("sidebarUserRole").innerText = state.currentRole;
   }
 
-  // Render Sidebar navigation based on role privileges
   function renderSidebarNav() {
     const navContainer = document.getElementById("sidebarNavContainer");
     if (!navContainer) return;
@@ -269,7 +278,6 @@ document.addEventListener("DOMContentLoaded", () => {
       { id: "analytics", label: "Hospital Dashboard", icon: "bx bx-bar-chart-alt-2", roles: ["staff"] },
       { id: "ai_assistant", label: "AI Health Assistant", icon: "bx bx-bot", roles: ["patient"] },
       
-      // Role-based registration permissions:
       { id: "register_member", label: "Register Member", icon: "bx bx-user-plus", roles: ["doctor"] },
       { id: "register_patient", label: "Register Patient", icon: "bx bx-user-plus", roles: ["staff"] }
     ];
@@ -539,7 +547,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
 
-        <div class="analytics-grid">
+        <div class="responsive-grid-equal" style="margin-bottom: 20px;">
           <div class="glass-panel">
             <div class="panel-header">
               <h3 class="panel-title"><i class='bx bx-notepad'></i> Medical Diagnoses</h3>
@@ -735,7 +743,7 @@ document.addEventListener("DOMContentLoaded", () => {
     toast.style.padding = "12px 20px";
     toast.style.borderRadius = "var(--border-radius-lg)";
     toast.style.boxShadow = "var(--card-shadow)";
-    toast.style.zIndex = "1000";
+    toast.style.zIndex = "3000";
     toast.style.fontFamily = "var(--font-heading)";
     toast.style.fontSize = "14px";
     toast.style.fontWeight = "700";
@@ -750,11 +758,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 4000);
   }
 
-  // --- COMMUNITIES & GROUPS PANEL ---
+  // --- COMMUNITIES & GROUPS PANEL (WITH MOBILE ROUTING) ---
   function renderGroups(container) {
     const activeGroup = window.MediConnectDB.groups.find(g => g.id === state.activeGroupId) || window.MediConnectDB.groups[0];
     const userObj = getCurrentUserObject();
     const currentUserName = userObj ? userObj.name : "Anonymous";
+    const isMobile = window.innerWidth <= 768;
 
     let groupCardsHTML = window.MediConnectDB.groups.map(g => `
       <div class="glass-panel group-select-card ${g.id === activeGroup.id ? 'active' : ''}" data-group-id="${g.id}" style="cursor:pointer; margin-bottom:12px; padding:12px; border-left: 4px solid ${g.id === activeGroup.id ? 'var(--color-primary)' : 'transparent'};">
@@ -778,16 +787,21 @@ document.addEventListener("DOMContentLoaded", () => {
     `).join('');
 
     container.innerHTML = `
-      <div style="display:grid; grid-template-columns: 260px 1fr; gap:20px; height: 550px;">
-        <div style="overflow-y:auto; padding-right:8px;">
+      <div class="groups-main-layout" id="groupsLayoutContainer">
+        <!-- Circle list left pane -->
+        <div id="groupListPane" class="${state.mobileCircleChatActive ? 'circle-list-hidden' : ''}" style="overflow-y:auto; padding-right:8px;">
           <h3 style="margin-bottom:12px; font-size:15px; text-transform:uppercase; color:var(--text-secondary);">Health Circles</h3>
           ${groupCardsHTML}
         </div>
         
-        <div class="glass-panel" style="display:flex; flex-direction:column; height:100%;">
+        <!-- Discussion chat board right pane -->
+        <div class="glass-panel ${!state.mobileCircleChatActive ? 'circle-chat-hidden' : 'circle-chat-full'}" id="groupChatPane" style="display:flex; flex-direction:column; height:100%;">
           <div class="panel-header" style="margin-bottom:10px;">
             <div>
-              <h3 class="panel-title">${activeGroup.avatar} ${activeGroup.name}</h3>
+              <h3 class="panel-title">
+                ${isMobile ? `<i class='bx bx-left-arrow-alt' id="backToCircleListBtn" style="cursor:pointer; margin-right:8px; font-size:24px; vertical-align:middle;"></i>` : ''}
+                ${activeGroup.avatar} ${activeGroup.name}
+              </h3>
               <p style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${activeGroup.description}</p>
             </div>
           </div>
@@ -805,9 +819,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const gc = document.getElementById("groupChatContainer");
     if (gc) gc.scrollTop = gc.scrollHeight;
 
+    // Mobile back button binding
+    const backBtn = container.querySelector("#backToCircleListBtn");
+    if (backBtn) {
+      backBtn.addEventListener("click", () => {
+        state.mobileCircleChatActive = false;
+        renderGroups(container);
+      });
+    }
+
     container.querySelectorAll(".group-select-card").forEach(card => {
       card.addEventListener("click", () => {
         state.activeGroupId = card.getAttribute("data-group-id");
+        state.mobileCircleChatActive = true; // maximize chat on mobile viewports
         renderGroups(container);
       });
     });
@@ -858,7 +882,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `).join('');
 
       container.innerHTML = `
-        <div style="display:grid; grid-template-columns: 320px 1fr; gap:20px;">
+        <div class="responsive-grid-split">
           <div class="glass-panel">
             <div class="panel-header">
               <h3 class="panel-title"><i class='bx bx-calendar-plus'></i> Schedule Appointment</h3>
@@ -963,7 +987,7 @@ document.addEventListener("DOMContentLoaded", () => {
         `).join('');
 
       container.innerHTML = `
-        <div class="glass-panel">
+        <div class="glass-panel" style="margin-bottom: 20px;">
           <div class="panel-header">
             <h3 class="panel-title"><i class='bx bx-calendar'></i> My Consultation Agenda</h3>
           </div>
@@ -991,7 +1015,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="panel-header">
             <h3 class="panel-title"><i class='bx bx-notepad'></i> Quick Update Patient Diagnosis & Prescription</h3>
           </div>
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+          <div class="responsive-grid-equal">
             <div>
               <div class="form-group">
                 <label>Select Patient</label>
@@ -1162,7 +1186,7 @@ document.addEventListener("DOMContentLoaded", () => {
     `).join('');
 
     container.innerHTML = `
-      <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:20px;">
+      <div class="responsive-grid-records">
         <div>
           <h3 style="margin-bottom:12px; font-size:16px; text-transform:uppercase; color:var(--text-secondary);">Ward Bed Allocations</h3>
           ${wardsHTML}
@@ -1238,8 +1262,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // --- MEMBER REGISTRATION DASHBOARDS ---
-
-  // DOCTOR PANEL: REGISTER MEMBER (PATIENT, DOCTOR, STAFF)
   function renderRegisterMember(container) {
     container.innerHTML = `
       <div class="glass-panel">
@@ -1277,7 +1299,6 @@ document.addEventListener("DOMContentLoaded", () => {
     loadForm("patient", formContainer);
   }
 
-  // STAFF PANEL: REGISTER PATIENT ONLY
   function renderRegisterPatient(container) {
     container.innerHTML = `
       <div class="glass-panel">
@@ -1298,7 +1319,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadForm(role, formContainer) {
     if (role === "patient") {
       formContainer.innerHTML = `
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+        <div class="responsive-grid-equal">
           <div class="form-group">
             <label>Patient Full Name</label>
             <input type="text" id="regPatName" class="form-control" placeholder="e.g. Robert Smith">
@@ -1307,11 +1328,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <label>Patient Username / ID</label>
             <input type="text" id="regPatUsername" class="form-control" placeholder="e.g. robert_smith">
           </div>
-          <div class="form-group" style="grid-column: span 2;">
-            <label>Profile Bio & Medical Notes</label>
-            <input type="text" id="regPatBio" class="form-control" placeholder="Brief statement about health background.">
-          </div>
-          <div class="form-group">
+          <div class="form-group" style="grid-column: span 1;">
             <label>Initial Blood Pressure</label>
             <input type="text" id="regPatBP" class="form-control" value="120/80 mmHg">
           </div>
@@ -1319,16 +1336,20 @@ document.addEventListener("DOMContentLoaded", () => {
             <label>Initial Glucose (mg/dL)</label>
             <input type="text" id="regPatSugar" class="form-control" value="95 mg/dL">
           </div>
-          <div class="form-group" style="grid-column: span 2;">
+          <div class="form-group" style="grid-column: span 1;">
             <label>Primary Diagnosis (if any)</label>
-            <input type="text" id="regPatDiagnosis" class="form-control" placeholder="e.g. Mild Hypertension (or leave empty)">
+            <input type="text" id="regPatDiagnosis" class="form-control" placeholder="e.g. Mild Hypertension">
+          </div>
+          <div class="form-group">
+            <label>Profile Bio & Medical Notes</label>
+            <input type="text" id="regPatBio" class="form-control" placeholder="Brief statement about health background.">
           </div>
         </div>
         <button class="btn-primary" id="submitRegBtn" style="margin-top:20px; width:100%; padding:10px;">Register Patient Profile</button>
       `;
     } else if (role === "doctor") {
       formContainer.innerHTML = `
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+        <div class="responsive-grid-equal">
           <div class="form-group">
             <label>Doctor Full Name</label>
             <input type="text" id="regDocFormName" class="form-control" placeholder="e.g. Dr. John Watson">
@@ -1337,15 +1358,15 @@ document.addEventListener("DOMContentLoaded", () => {
             <label>Doctor Username / ID</label>
             <input type="text" id="regDocFormUsername" class="form-control" placeholder="e.g. dr_watson">
           </div>
-          <div class="form-group" style="grid-column: span 2;">
+          <div class="form-group">
             <label>Specialization Department</label>
             <input type="text" id="regDocFormSpecialty" class="form-control" placeholder="e.g. General Pediatrics">
           </div>
-          <div class="form-group" style="grid-column: span 2;">
+          <div class="form-group">
             <label>Medical Credentials</label>
             <input type="text" id="regDocFormCredentials" class="form-control" placeholder="e.g. MD, FACP">
           </div>
-          <div class="form-group" style="grid-column: span 2;">
+          <div class="form-group" style="grid-column: span 1;">
             <label>Doctor Bio</label>
             <input type="text" id="regDocFormBio" class="form-control" placeholder="Special interest in diagnostics.">
           </div>
@@ -1354,7 +1375,7 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
     } else if (role === "staff") {
       formContainer.innerHTML = `
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+        <div class="responsive-grid-equal">
           <div class="form-group">
             <label>Staff Full Name</label>
             <input type="text" id="regStaffFormName" class="form-control" placeholder="e.g. Clara Croft">
@@ -1371,7 +1392,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <label>Shift Schedule</label>
             <input type="text" id="regStaffFormShift" class="form-control" value="Day Shift (08:00 AM - 05:00 PM)">
           </div>
-          <div class="form-group" style="grid-column: span 2;">
+          <div class="form-group" style="grid-column: span 1;">
             <label>Staff Bio</label>
             <input type="text" id="regStaffFormBio" class="form-control" placeholder="Experienced clinical operations manager.">
           </div>
@@ -1430,7 +1451,6 @@ document.addEventListener("DOMContentLoaded", () => {
       registerNewUser(newPatient);
       showToastNotification(`Registered Patient: ${name}`);
       
-      // refresh view
       if (state.currentRole === "doctor") {
         renderRegisterMember(document.getElementById("mainContentArea"));
       } else {
@@ -1566,7 +1586,72 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 100);
   }
 
-  // --- AI HEALTH ASSISTANT PANEL ---
+  function renderDashboardCharts() {
+    const occCtx = document.getElementById("occupancyChart")?.getContext("2d");
+    if (!occCtx) return;
+
+    const wardLabels = window.MediConnectDB.beds.map(w => w.ward);
+    const wardOccupied = window.MediConnectDB.beds.map(w => w.occupied);
+    const wardTotal = window.MediConnectDB.beds.map(w => w.total - w.occupied);
+
+    new Chart(occCtx, {
+      type: 'bar',
+      data: {
+        labels: wardLabels,
+        datasets: [
+          {
+            label: 'Occupied Beds',
+            data: wardOccupied,
+            backgroundColor: 'rgba(124, 58, 237, 0.7)',
+            borderColor: 'rgb(124, 58, 237)',
+            borderWidth: 1
+          },
+          {
+            label: 'Available Beds',
+            data: wardTotal,
+            backgroundColor: 'rgba(24, 119, 242, 0.2)',
+            borderColor: 'rgba(24, 119, 242, 0.4)',
+            borderWidth: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true }
+        }
+      }
+    });
+
+    const regCtx = document.getElementById("registrationsChart")?.getContext("2d");
+    if (!regCtx) return;
+
+    new Chart(regCtx, {
+      type: 'line',
+      data: {
+        labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        datasets: [{
+          label: 'Outpatients Registered',
+          data: [120, 150, 180, 140, 190, 90, 70],
+          fill: true,
+          borderColor: 'rgb(24, 119, 242)',
+          backgroundColor: 'rgba(24, 119, 242, 0.1)',
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  // --- AI HEALTH ASSISTANT PANEL (TAB SYNCED) ---
   function renderAIAssistant(container) {
     container.innerHTML = `
       <div class="glass-panel" style="padding: 24px;">
@@ -1574,7 +1659,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <h3 class="panel-title"><i class='bx bx-bot' style="color:var(--color-patient);"></i> AI-Powered Health Companion</h3>
         </div>
         <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">
-          Ask general medical queries, check drug side effects, or test healthy tips. (Try asking about "metformin", "high blood pressure", or "diabetes symptoms").
+          Ask general medical queries, check drug side effects, or test healthy tips. Connected to live API when configured.
         </p>
 
         <div class="ai-chat-container">
@@ -1582,51 +1667,49 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="ai-avatar"><i class='bx bx-brain' style="color:white;"></i></div>
             <div class="ai-info">
               <h4>MediBot Assistant</h4>
-              <p>Online • AI Healthcare Advisor</p>
+              <p>Online • Real-Time Streaming AI</p>
             </div>
           </div>
-          <div class="ai-messages" id="aiChatWindow">
-            <div class="ai-bubble incoming">
-              Hello! I am MediBot, your social hospital AI assistant. How can I help you check your wellness parameters or prescriptions today?
-            </div>
+          <div class="ai-messages" id="aiTabChatWindow">
+            <!-- Synced with global chat history -->
           </div>
           <div class="ai-input-container">
-            <input type="text" id="aiChatMsgInput" class="chat-box-input" style="padding:10px 14px;" placeholder="Ask MediBot something...">
-            <button class="chat-box-send-btn" id="sendAiMsgBtn" style="font-size: 20px;"><i class='bx bxs-send'></i></button>
+            <input type="text" id="aiTabChatMsgInput" class="chat-box-input" style="padding:10px 14px;" placeholder="Ask MediBot something...">
+            <button class="chat-box-send-btn" id="sendAiTabMsgBtn" style="font-size: 20px;"><i class='bx bxs-send'></i></button>
           </div>
         </div>
       </div>
     `;
 
-    const input = document.getElementById("aiChatMsgInput");
-    const sendBtn = document.getElementById("sendAiMsgBtn");
-    const chatWindow = document.getElementById("aiChatWindow");
+    const input = document.getElementById("aiTabChatMsgInput");
+    const sendBtn = document.getElementById("sendAiTabMsgBtn");
+    const chatWindow = document.getElementById("aiTabChatWindow");
 
-    const handleAImessage = () => {
+    // Sync messages from global chat
+    syncAITabChatWindow();
+
+    const handleAITabMessage = () => {
       const q = input.value.trim();
       if (!q) return;
-
-      const userBubble = document.createElement("div");
-      userBubble.className = "ai-bubble outgoing";
-      userBubble.innerText = q;
-      chatWindow.appendChild(userBubble);
-      input.value = "";
       
-      chatWindow.scrollTop = chatWindow.scrollHeight;
-
-      setTimeout(() => {
-        const botBubble = document.createElement("div");
-        botBubble.className = "ai-bubble incoming";
-        botBubble.innerHTML = getAIResponseText(q);
-        chatWindow.appendChild(botBubble);
-        chatWindow.scrollTop = chatWindow.scrollHeight;
-      }, 1000);
+      input.value = "";
+      // Process through shared AI engine (which updates both logs)
+      processAIQuery(q, chatWindow);
     };
 
-    if (sendBtn) sendBtn.addEventListener("click", handleAImessage);
+    if (sendBtn) sendBtn.addEventListener("click", handleAITabMessage);
     if (input) input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") handleAImessage();
+      if (e.key === "Enter") handleAITabMessage();
     });
+  }
+
+  function syncAITabChatWindow() {
+    const tabWindow = document.getElementById("aiTabChatWindow");
+    const globalMsgs = document.getElementById("globalAiChatMsgs");
+    if (tabWindow && globalMsgs) {
+      tabWindow.innerHTML = globalMsgs.innerHTML;
+      tabWindow.scrollTop = tabWindow.scrollHeight;
+    }
   }
 
   // --- FLOATING DIRECT CHAT (RIGHT SIDEBAR DIRECTORY) ---
@@ -1671,7 +1754,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let chatPanel = document.getElementById(`floatingChat_${userId}`);
     
     if (!chatPanel) {
-      document.querySelectorAll(".floating-chat-box").forEach(box => box.remove());
+      document.querySelectorAll(".floating-chat-box").forEach(box => {
+        if (!box.classList.contains("global-ai-chat-box")) box.remove();
+      });
 
       chatPanel = document.createElement("div");
       chatPanel.className = "floating-chat-box";
@@ -1798,6 +1883,203 @@ document.addEventListener("DOMContentLoaded", () => {
       window.saveMediConnectDB();
       renderDirectMessages(userId);
     }, 2000);
+  }
+
+  // --- REAL-TIME AI STREAM COMPONENT ---
+  async function queryLiveAI(prompt) {
+    const provider = localStorage.getItem("mediconnect_ai_provider") || "gemini";
+    const apiKey = localStorage.getItem("mediconnect_ai_api_key") || "";
+
+    if (!apiKey) {
+      throw new Error("No API Key configured.");
+    }
+
+    if (provider === "gemini") {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          systemInstruction: {
+            parts: [{ text: "You are MediBot, a helpful, real-time AI clinical assistant for the MediConnect social hospital network. Provide concise, clear, and structured medical advice, health tips, or operational guidelines. Format your response nicely using HTML tags like <strong> or <br/> for line breaks, NOT raw markdown tags (no * or # symbols), because the custom text streamer parses HTML. If asked diagnostic or prescription changes, always advise consultation with Dr. Sarah Lin or clinical coordinators. If asked operational metrics, cite typical clinic values (e.g. ICU load is 91%)." }]
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Gemini API Error: Status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+        return data.candidates[0].content.parts[0].text;
+      } else {
+        throw new Error("Invalid response format from Gemini API.");
+      }
+    } else {
+      // OpenAI completion API call
+      const url = "https://api.openai.com/v1/chat/completions";
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: "You are MediBot, a helpful, real-time AI clinical assistant for the MediConnect social hospital network. Provide concise, clear, and structured medical advice, health tips, or operational guidelines. Format your response nicely using HTML tags like <strong> or <br/> for line breaks, NOT raw markdown, because the custom text streamer parses HTML. If asked diagnostic or prescription changes, always advise consultation with Dr. Sarah Lin or clinical coordinators. If asked operational metrics, cite typical clinic values (e.g. ICU load is 91%)." },
+            { role: "user", content: prompt }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API Error: Status ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.choices && data.choices[0].message) {
+        return data.choices[0].message.content;
+      } else {
+        throw new Error("Invalid response format from OpenAI.");
+      }
+    }
+  }
+
+  function streamText(element, htmlContent, scrollContainer, callback) {
+    element.innerHTML = "";
+    let currentHTML = "";
+    
+    // HTML Tag-aware tokenizer
+    const tokens = [];
+    let i = 0;
+    while (i < htmlContent.length) {
+      if (htmlContent[i] === '<') {
+        let tag = "";
+        while (i < htmlContent.length && htmlContent[i] !== '>') {
+          tag += htmlContent[i];
+          i++;
+        }
+        if (i < htmlContent.length) {
+          tag += '>';
+          i++;
+        }
+        tokens.push({ type: 'tag', content: tag });
+      } else {
+        tokens.push({ type: 'char', content: htmlContent[i] });
+        i++;
+      }
+    }
+
+    let tokenIndex = 0;
+    function nextToken() {
+      if (tokenIndex < tokens.length) {
+        const t = tokens[tokenIndex];
+        currentHTML += t.content;
+        element.innerHTML = currentHTML;
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+        tokenIndex++;
+        
+        // Instant speed for tags, small delay for text characters
+        const delay = t.type === 'tag' ? 0 : 10;
+        setTimeout(nextToken, delay);
+      } else {
+        if (callback) callback();
+      }
+    }
+    nextToken();
+  }
+
+  async function processAIQuery(queryText, messageContainer) {
+    // Shared container scrolling
+    const scrollContainer = messageContainer;
+    
+    // 1. Add User message bubble
+    const userBubble = document.createElement("div");
+    userBubble.className = "chat-bubble outgoing";
+    userBubble.innerText = queryText;
+    messageContainer.appendChild(userBubble);
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+
+    // 2. Add bouncing Typing indicator bubble
+    const typingBubble = document.createElement("div");
+    typingBubble.className = "typing-bubble";
+    typingBubble.id = "tempTypingBubble";
+    typingBubble.innerHTML = `
+      <span style="font-size:11px; color:var(--text-secondary); margin-right:4px;">MediBot is typing</span>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+      <span class="typing-dot"></span>
+    `;
+    messageContainer.appendChild(typingBubble);
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+
+    // Trigger sync if the tab view is open
+    if (state.currentView === "ai_assistant") {
+      syncAITabChatWindow();
+    }
+
+    // 3. Fetch reply
+    let responseText = "";
+    try {
+      const apiKey = localStorage.getItem("mediconnect_ai_api_key");
+      if (apiKey && apiKey.trim() !== "") {
+        responseText = await queryLiveAI(queryText);
+      } else {
+        // Fallback local clinical replies database
+        await new Promise(resolve => setTimeout(resolve, 1200)); // typing delay
+        responseText = getAIResponseText(queryText);
+      }
+    } catch (e) {
+      console.error("MediBot live API error:", e);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      responseText = `⚠️ <strong>API Error:</strong> ${e.message} <br/><br/>Please check your API key credentials inside the settings drawer. Falling back to offline advice: <br/>${getAIResponseText(queryText)}`;
+    }
+
+    // 4. Remove typing bubble
+    const indicator = document.getElementById("tempTypingBubble");
+    if (indicator) indicator.remove();
+
+    // 5. Stream Bot reply bubble
+    const botBubble = document.createElement("div");
+    botBubble.className = "chat-bubble incoming";
+    messageContainer.appendChild(botBubble);
+
+    streamText(botBubble, responseText, scrollContainer, () => {
+      // Sync on complete
+      if (state.currentView === "ai_assistant") {
+        syncAITabChatWindow();
+      }
+    });
+  }
+
+  function getAIResponseText(query) {
+    const q = query.toLowerCase();
+    
+    if (q.includes("metformin")) {
+      return "💊 <strong>Metformin</strong> is an oral antidiabetic medication commonly prescribed for Type 2 Diabetes to improve insulin sensitivity. <br/><br/><strong>Common Side Effects:</strong> Nausea, stomach upset, or mild diarrhea. Taking it with meals reduces these symptoms. <br/><strong>Note:</strong> Always monitor your renal/kidney functions regularly.";
+    }
+    if (q.includes("blood pressure") || q.includes("hypertension") || q.includes("lisinopril")) {
+      return "❤️ <strong>Lisinopril</strong> is an ACE inhibitor used to treat hypertension (high blood pressure) and heart failure. <br/><br/><strong>Key parameters:</strong> Normal blood pressure is below 120/80 mmHg. <br/><strong>Caution:</strong> ACE inhibitors may cause a dry persistent cough. Contact Dr. Lin if this becomes severe.";
+    }
+    if (q.includes("diabetes") || q.includes("hba1c") || q.includes("sugar")) {
+      return "🥗 <strong>Type 2 Diabetes Control:</strong> Your HbA1c target should generally be below 7.0%. <br/><br/><strong>General tips:</strong> Keep doing your 15-minute walks after meals. Focus on high-fiber greens (spinach, broccoli) and minimize processed carbs.";
+    }
+    if (q.includes("amoxicillin") || q.includes("antibiotic")) {
+      return "💊 <strong>Amoxicillin</strong> is a penicillin antibiotic that fights bacteria. <br/><br/><strong>Operational Alert:</strong> Our pharmacy stock is currently <strong>Low (90 Capsules)</strong> on Shelf C-4. Restocking is scheduled for tomorrow.";
+    }
+    if (q.includes("bed") || q.includes("icu") || q.includes("ward")) {
+      return "🛏️ <strong>Ward Status Alert:</strong> ICU occupancy load is currently <strong>91%</strong> (6/8 occupied). General Ward A has 15/20 beds occupied. Bed allocation logs can be managed under Wards & Assets.";
+    }
+    if (q.includes("hello") || q.includes("hi") || q.includes("hey")) {
+      return "👋 Hello! I can help you decode prescriptions, check standard clinical terms, or retrieve hospital metrics. What is on your mind today?";
+    }
+
+    return "🤖 I have analyzed your query. While I can offer general health guidelines, for diagnostic concerns, please book a clinic evaluation with <strong>Dr. Sarah Lin</strong> via the <strong>Clinic Appointments</strong> tab or initiate a Telemedicine chat.";
   }
 
   // --- MOCK TELEMEDICINE FLOW ---
@@ -1960,7 +2242,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- ATTACH EVENT LISTENERS ---
   function setupEventListeners() {
-    // 1. Switch login modes (Quick vs Manual)
+    // 1. Quick Login Selection Clicks
+    document.querySelectorAll(".quick-login-card").forEach(card => {
+      card.addEventListener("click", () => {
+        const uid = card.getAttribute("data-uid");
+        let role = "patient";
+        if (uid === "doctor_sarah") role = "doctor";
+        if (uid === "staff_james") role = "staff";
+        login(uid, role);
+      });
+    });
+
+    // 2. Switching Login sub-sections
     document.getElementById("switchToManualBtn").addEventListener("click", () => {
       document.getElementById("quickLoginSection").style.display = "none";
       document.getElementById("manualLoginSection").style.display = "block";
@@ -1972,7 +2265,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("loginErrorMessage").style.display = "none";
     });
 
-    // 2. Doctor Self-Registration Onboarding Modal
+    // 3. Doctor Self-Registration Onboarding Modal
     document.getElementById("doctorSelfRegisterBtn").addEventListener("click", () => {
       document.getElementById("doctorRegisterModalOverlay").style.display = "flex";
     });
@@ -2013,7 +2306,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       registerNewUser(newDoctor);
 
-      // Close modal & reset inputs
       document.getElementById("doctorRegisterModalOverlay").style.display = "none";
       document.getElementById("regDocName").value = "";
       document.getElementById("regDocUsername").value = "";
@@ -2025,7 +2317,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showToastNotification(`Successfully Onboarded! Try logging in as: ${username}`);
     });
 
-    // 3. Manual Sign-In submit button
+    // 4. Manual Sign-In submit button
     document.getElementById("manualSignInBtn").addEventListener("click", () => {
       const username = document.getElementById("loginUsername").value.trim().toLowerCase();
       const role = document.getElementById("loginRole").value;
@@ -2033,7 +2325,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       errorMsg.style.display = "none";
 
-      // Match credentials
       if (role === "patient" && (username === "patient_john" || username === "john")) {
         login("patient_john", "patient");
       } else if (role === "doctor" && (username === "doctor_sarah" || username === "sarah")) {
@@ -2041,12 +2332,10 @@ document.addEventListener("DOMContentLoaded", () => {
       } else if (role === "staff" && (username === "staff_james" || username === "james")) {
         login("staff_james", "staff");
       } else {
-        // Fallback for newly created users or custom login
         const match = window.MediConnectDB.directory.find(u => u.id === username && u.role === role);
         if (match) {
           login(username, role);
         } else {
-          // Allow custom dynamic demo logins as long as they are >2 characters
           if (username.length > 2) {
             login(username, role);
           } else {
@@ -2056,14 +2345,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // 4. Logout Action button
+    // 5. Logout Action button
     document.getElementById("logoutBtn").addEventListener("click", () => {
       if (confirm("Are you sure you want to log out of MediConnect?")) {
         logout();
       }
     });
 
-    // 5. Search Bar input listener
+    // 6. Search Bar input listener
     const searchInput = document.getElementById("topSearchInput");
     if (searchInput) {
       searchInput.addEventListener("input", (e) => {
@@ -2074,19 +2363,99 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // 6. Emergency Trigger button
+    // 7. Emergency Trigger button
     document.getElementById("topEmergencyBtn").addEventListener("click", () => {
       startEmergencyAlert();
     });
 
-    // 7. Dark Mode Toggle
+    // 8. Dark Mode Toggle
     document.getElementById("themeToggleBtn").addEventListener("click", () => {
       toggleDarkMode();
     });
 
-    // 8. Sidebar User Card click links to Profile view
+    // 9. Sidebar User Card click links to Profile view
     document.getElementById("sidebarUserCardBtn").addEventListener("click", () => {
       navigateTo("profile");
+    });
+
+    // --- GLOBAL AI CHAT TOGGLES ---
+    const globalAiBtn = document.getElementById("globalAiToggleBtn");
+    const globalAiBox = document.getElementById("globalAiChatBox");
+    const closeGlobalAi = document.getElementById("closeGlobalAiChat");
+    const minimizeGlobalAi = document.getElementById("minimizeGlobalAiChat");
+    const toggleSettingsBtn = document.getElementById("toggleAiSettings");
+    const settingsDrawer = document.getElementById("aiSettingsDrawer");
+    const saveSettingsBtn = document.getElementById("saveAiSettingsBtn");
+    const aiInput = document.getElementById("globalAiChatInput");
+    const aiSendBtn = document.getElementById("sendGlobalAiMsgBtn");
+    const aiChatWindow = document.getElementById("globalAiChatMsgs");
+
+    if (globalAiBtn && globalAiBox) {
+      globalAiBtn.addEventListener("click", () => {
+        if (globalAiBox.style.display === "none" || globalAiBox.classList.contains("collapsed")) {
+          globalAiBox.style.display = "flex";
+          setTimeout(() => { globalAiBox.classList.remove("collapsed"); }, 10);
+          aiChatWindow.scrollTop = aiChatWindow.scrollHeight;
+        } else {
+          globalAiBox.classList.add("collapsed");
+          setTimeout(() => { globalAiBox.style.display = "none"; }, 300);
+        }
+      });
+    }
+
+    if (closeGlobalAi && globalAiBox) {
+      closeGlobalAi.addEventListener("click", (e) => {
+        e.stopPropagation();
+        globalAiBox.classList.add("collapsed");
+        setTimeout(() => { globalAiBox.style.display = "none"; }, 300);
+      });
+    }
+
+    if (minimizeGlobalAi && globalAiBox) {
+      minimizeGlobalAi.addEventListener("click", (e) => {
+        e.stopPropagation();
+        globalAiBox.classList.add("collapsed");
+        setTimeout(() => { globalAiBox.style.display = "none"; }, 300);
+      });
+    }
+
+    if (toggleSettingsBtn && settingsDrawer) {
+      toggleSettingsBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (settingsDrawer.style.display === "none") {
+          settingsDrawer.style.display = "flex";
+          document.getElementById("aiProvider").value = localStorage.getItem("mediconnect_ai_provider") || "gemini";
+          document.getElementById("aiApiKey").value = localStorage.getItem("mediconnect_ai_api_key") || "";
+        } else {
+          settingsDrawer.style.display = "none";
+        }
+      });
+    }
+
+    if (saveSettingsBtn && settingsDrawer) {
+      saveSettingsBtn.addEventListener("click", () => {
+        const provider = document.getElementById("aiProvider").value;
+        const apiKey = document.getElementById("aiApiKey").value.trim();
+        
+        localStorage.setItem("mediconnect_ai_provider", provider);
+        localStorage.setItem("mediconnect_ai_api_key", apiKey);
+        
+        settingsDrawer.style.display = "none";
+        showToastNotification("MediBot credentials saved successfully!");
+      });
+    }
+
+    const handleGlobalAiMsg = () => {
+      const q = aiInput.value.trim();
+      if (!q) return;
+      
+      aiInput.value = "";
+      processAIQuery(q, aiChatWindow);
+    };
+
+    if (aiSendBtn) aiSendBtn.addEventListener("click", handleGlobalAiMsg);
+    if (aiInput) aiInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") handleGlobalAiMsg();
     });
   }
 });

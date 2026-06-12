@@ -89,7 +89,7 @@
     <header class="topbar">
       <div class="brand-section">
         <div class="brand-logo">
-          <i class='bx bx-pulse'></i> MediConnect
+          <i class='bx bx-pulse'></i> <span class="brand-text">MediConnect</span>
         </div>
         <div class="search-bar-container">
           <i class='bx bx-search'></i>
@@ -100,7 +100,7 @@
       <div class="topbar-actions">
         <!-- Emergency alert button -->
         <button class="emergency-alert-btn" id="topEmergencyBtn">
-          <i class='bx bxs-error-alt'></i> EMERGENCY
+          <i class='bx bxs-error-alt'></i> <span class="emergency-text">EMERGENCY</span>
         </button>
 
         <!-- System Controls -->
@@ -166,6 +166,64 @@
   <!-- Chat Dock for floating direct messaging chatboxes (Facebook-style) -->
   <div class="chat-dock" id="chatDockContainer">
     <!-- Active chats spawn here -->
+  </div>
+
+  <!-- Global AI Assistant Floating Toggle Button -->
+  <button id="globalAiToggleBtn" class="global-ai-toggle" title="Ask MediBot AI Assistant" style="display: none;">
+    <i class='bx bx-bot'></i>
+    <span class="ai-online-pulse"></span>
+  </button>
+
+  <!-- Global AI Assistant Chat Box (hidden by default) -->
+  <div id="globalAiChatBox" class="floating-chat-box global-ai-chat-box collapsed" style="display: none;">
+    <div class="chat-box-header" style="border-top: 3px solid var(--color-primary);">
+      <div class="chat-header-user">
+        <div class="ai-avatar-circle"><i class='bx bx-brain'></i></div>
+        <div class="chat-header-title">
+          <h4>MediBot AI Assistant</h4>
+          <p id="globalAiStatusText">Online • Streaming AI Advisor</p>
+        </div>
+      </div>
+      <div class="chat-box-actions">
+        <i class='bx bx-cog' id="toggleAiSettings" style="cursor:pointer;" title="AI API Configuration"></i>
+        <i class='bx bx-minus' id="minimizeGlobalAiChat" style="cursor:pointer;"></i>
+        <i class='bx bx-x' id="closeGlobalAiChat" style="cursor:pointer;"></i>
+      </div>
+    </div>
+    
+    <!-- API Settings Drawer (collapsible inside header) -->
+    <div class="ai-settings-drawer" id="aiSettingsDrawer" style="display: none;">
+      <h5 style="font-size:12px; margin-bottom:8px; font-family:var(--font-heading);">AI API Credentials</h5>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label for="aiProvider" style="font-size:10px;">Provider</label>
+        <select id="aiProvider" class="form-control" style="padding: 4px 8px; font-size:11px; height:auto;">
+          <option value="gemini">Google Gemini (Free tier recommended)</option>
+          <option value="openai">OpenAI (Requires paid credits)</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:8px;">
+        <label for="aiApiKey" style="font-size:10px;">API Key</label>
+        <input type="password" id="aiApiKey" class="form-control" placeholder="Paste your API key here..." style="padding: 4px 8px; font-size:11px; height:auto;">
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+        <span style="font-size:9px;">
+          <a href="https://aistudio.google.com/" target="_blank" style="color:var(--color-primary); text-decoration:underline;">Get Free Gemini Key ↗</a>
+        </span>
+        <button class="btn-primary" id="saveAiSettingsBtn" style="padding:4px 10px; font-size:10px; border-radius:10px;">Save Key</button>
+      </div>
+    </div>
+
+    <!-- Message Window -->
+    <div class="chat-box-messages" id="globalAiChatMsgs">
+      <div class="chat-bubble incoming">
+        Hello! I am MediBot, your real-time AI assistant. Ask me anything about prescriptions, symptoms, or hospital ward occupancies!
+      </div>
+    </div>
+    
+    <div class="chat-box-input-container">
+      <input type="text" class="chat-box-input" id="globalAiChatInput" placeholder="Ask MediBot...">
+      <button class="chat-box-send-btn" id="sendGlobalAiMsgBtn"><i class='bx bxs-send'></i></button>
+    </div>
   </div>
 
   <!-- Telemedicine Mock Call Modal Overlay -->
